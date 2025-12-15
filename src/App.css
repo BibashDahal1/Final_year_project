@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
 font-face {
-    font-family:playfair-display; ;
+    font-family:playfair-display;
     src: url("../src/assets/PlayfairDisplay-Regular.ttf") format("truetype");
+}
+
+font-face{
+    font-family:italiana;
+    src:url("../src/assets/Italiana-Regular.ttf") format("truetype")
 }
