@@ -18,7 +18,7 @@ const LnadingPage = () => {
             </p>
             <div className="mt-4">
               <button className="bg-white text-black rounded-2xl h-10 w-40 text-lg hover:bg-amber-200 hover:scale-110 transition-all">
-                <Link to="/login">Get started Free</Link>
+                <Link to="/signup">Get started Free</Link>
               </button>
             </div>
           </div>

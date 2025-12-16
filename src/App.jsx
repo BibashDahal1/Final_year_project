@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import LnadingPage from "./pages/LnadingPage";
 import Features from "./pages/Features";
 import Login from "./pages/Login";
+import SignUp from "./pages/SignUp";
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
           <Route path="/" element={<LnadingPage />} />
           <Route path="/features" element={<Features />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
         </Routes>
       </HashRouter>
     </>
