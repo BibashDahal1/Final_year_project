@@ -1,24 +1,40 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "./Navbar";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { signupUser, googleLogin, clearError } from "../Slices/AuthSlice";
+import {
+  signupUser,
+  googleLogin,
+  clearError,
+  verifyOTP,
+  resetSignupSuccess,
+} from "../Slices/AuthSlice";
 import { GoogleLogin } from "@react-oauth/google";
 
 const SignUp = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { isLoading, error, signupSuccess, isAuthenticated } = useSelector(
-    (state: any) => state.auth
-  );
+  const {
+    isLoading,
+    error,
+    signupSuccess,
+    isAuthenticated,
+    otpVerified,
+    signupEmail,
+  } = useSelector((state: any) => state.auth);
 
   const [formData, setFormData] = useState({
     username: "",
     email: "",
     password: "",
+    confirm_password: "",
     phone: "",
   });
+
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [otpError, setOtpError] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -32,15 +48,78 @@ const SignUp = () => {
     dispatch(signupUser(formData));
   };
 
+  const handleOtpChange = (index: number, value: string) => {
+    if (value.length > 1) return; // Only allow single digit
+    if (!/^\d*$/.test(value)) return; // Only allow numbers
+
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    setOtpError("");
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`otp-${index + 1}`);
+      nextInput?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`);
+      prevInput?.focus();
+    }
+  };
+
+  const handleOtpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const otpString = otp.join("");
+
+    if (otpString.length !== 6) {
+      setOtpError("Please enter all 6 digits");
+      return;
+    }
+
+    const emailToVerify = signupEmail || formData.email;
+
+    const otpPayload = {
+      email: emailToVerify,
+      otp: otpString,
+      code: otpString,
+      verification_code: otpString,
+    };
+
+    console.log("Submitting OTP with payload:", otpPayload);
+    dispatch(verifyOTP(otpPayload));
+  };
+
+  const handleResendOtp = () => {
+    // Resend OTP by calling signup again
+    dispatch(signupUser(formData));
+    setOtp(["", "", "", "", "", ""]);
+    setOtpError("");
+  };
+
+  // Show OTP modal when signup is successful
   useEffect(() => {
-    if (signupSuccess || isAuthenticated) {
+    if (signupSuccess && !isAuthenticated) {
+      setShowOtpModal(true);
+    }
+  }, [signupSuccess, isAuthenticated]);
+
+  // Navigate to chat when OTP is verified or authenticated
+  useEffect(() => {
+    if (otpVerified && isAuthenticated) {
+      setShowOtpModal(false);
       navigate("/chat");
     }
-  }, [signupSuccess, isAuthenticated, navigate]);
+  }, [otpVerified, isAuthenticated, navigate]);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       dispatch(clearError());
+      dispatch(resetSignupSuccess());
     };
   }, [dispatch]);
 
@@ -56,9 +135,9 @@ const SignUp = () => {
         >
           <h2 className="text-2xl font-semibold mb-6">Get Started</h2>
 
-          {error && (
+          {error && !showOtpModal && (
             <div className="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-200 text-sm">
-              Sign Up Failed! : {error}
+              {typeof error === "string" ? error : JSON.stringify(error)}
             </div>
           )}
 
@@ -95,6 +174,15 @@ const SignUp = () => {
               name="password"
               placeholder="Password"
               value={formData.password}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-2 rounded-lg bg-white/20 placeholder-gray-200 text-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            />
+            <input
+              type="password"
+              name="confirm_password"
+              placeholder="Confirm Password"
+              value={formData.confirm_password}
               onChange={handleChange}
               required
               className="w-full px-4 py-2 rounded-lg bg-white/20 placeholder-gray-200 text-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
@@ -145,6 +233,94 @@ const SignUp = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* OTP Verification Modal */}
+      <AnimatePresence>
+        {showOtpModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowOtpModal(false);
+              }
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-full max-w-md p-8 rounded-2xl bg-white/10 backdrop-blur-md border border-white/30 shadow-2xl text-white"
+            >
+              <h3 className="text-2xl font-semibold mb-2 text-center">
+                Verify Your Email
+              </h3>
+              <p className="text-sm text-white/70 mb-6 text-center">
+                We've sent a 6-digit code to <br />
+                <span className="font-medium text-white">
+                  {signupEmail || formData.email}
+                </span>
+              </p>
+
+              {error && (
+                <div className="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-200 text-sm text-center">
+                  {typeof error === "string"
+                    ? error
+                    : "Verification failed. Please try again."}
+                </div>
+              )}
+
+              {otpError && (
+                <div className="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-200 text-sm text-center">
+                  {otpError}
+                </div>
+              )}
+
+              <form onSubmit={handleOtpSubmit}>
+                <div className="flex justify-center gap-2 mb-6">
+                  {otp.map((digit, index) => (
+                    <input
+                      key={index}
+                      id={`otp-${index}`}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(index, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                      className="w-12 h-14 text-center text-2xl font-bold rounded-lg bg-white/20 text-white border-2 border-white/30 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition"
+                    />
+                  ))}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-3 rounded-lg bg-white/30 hover:bg-white/50 text-white font-bold transition disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+                >
+                  {isLoading ? "Verifying..." : "Verify OTP"}
+                </button>
+              </form>
+
+              <div className="text-center">
+                <p className="text-sm text-white/70 mb-2">
+                  Didn't receive the code?
+                </p>
+                <button
+                  onClick={handleResendOtp}
+                  disabled={isLoading}
+                  className="text-sm text-indigo-300 hover:text-indigo-200 underline disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  Resend OTP
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
