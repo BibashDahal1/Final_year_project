@@ -5,9 +5,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { store } from "./Store";
 import LandingPage from "./pages/LandingPage";
 import Features from "./pages/Features";
-import Login from "./pages/Login";
-import SignUp from "./pages/SignUp";
-import Chat from "./pages/Chat";
+import Translator from "./pages/Chat";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -20,16 +18,14 @@ function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/features" element={<Features />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<SignUp />} />
 
             {/* Protected Chat Route */}
             <Route
               path="/chat"
               element={
-                <ProtectedRoute>
-                  <Chat />
-                </ProtectedRoute>
+                // <ProtectedRoute>
+                <Translator />
+                // </ProtectedRoute>
               }
             />
           </Routes>

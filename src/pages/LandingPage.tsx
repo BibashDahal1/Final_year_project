@@ -1,8 +1,11 @@
 import React from "react";
 import Navbar from "./Navbar";
-import { Link } from "react-router-dom";
 
-const LnadingPage = () => {
+const LandingPage = () => {
+  const handleGetStarted = () => {
+    window.dispatchEvent(new CustomEvent("openSignupModal"));
+  };
+
   return (
     <>
       <Navbar />
@@ -17,8 +20,11 @@ const LnadingPage = () => {
               Convert images into editable text instantly.
             </p>
             <div className="mt-4">
-              <button className="bg-white text-black rounded-2xl h-10 w-40 text-lg hover:bg-amber-200 hover:scale-110 transition-all">
-                <Link to="/signup">Get started Free</Link>
+              <button
+                onClick={handleGetStarted}
+                className="bg-white text-black rounded-2xl h-10 w-40 text-lg hover:bg-amber-200 hover:scale-110 transition-all"
+              >
+                Get started Free
               </button>
             </div>
           </div>
@@ -28,4 +34,4 @@ const LnadingPage = () => {
   );
 };
 
-export default LnadingPage;
+export default LandingPage;
