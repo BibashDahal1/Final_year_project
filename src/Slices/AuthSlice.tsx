@@ -108,6 +108,100 @@ export const googleLogin = createAsyncThunk(
   },
 );
 
+// Async thunk for OCR extraction
+export const extractOCR = createAsyncThunk(
+  "ocr/extract",
+  async ({ image, language }, { rejectWithValue }) => {
+    try {
+      const formData = new FormData();
+      formData.append("image", image);
+      formData.append("language", language);
+
+      const response = await fetch(`${baseurl}/api/ocr/extract/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Token ${localStorage.getItem("authToken")}`,
+          // No Content-Type header — let browser set multipart boundary
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) return rejectWithValue(data);
+      return data;
+    } catch (error) {
+      return rejectWithValue({ message: error.message });
+    }
+  },
+);
+
+export const translateText = createAsyncThunk(
+  "translation/translate",
+  async ({ text, direction }, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`${baseurl}/api/translation/translate/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Token ${localStorage.getItem("authToken")}`,
+        },
+        body: JSON.stringify({ text, direction }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) return rejectWithValue(data);
+      return data;
+    } catch (error) {
+      return rejectWithValue({ message: error.message });
+    }
+  },
+);
+
+export const ocrTranslate = createAsyncThunk(
+  "ocr/ocrTranslate",
+  async ({ image, language }, { rejectWithValue }) => {
+    try {
+      const formData = new FormData();
+      formData.append("image", image);
+      formData.append("language", language);
+
+      const response = await fetch(`${baseurl}/api/ocr/ocr-translate/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Token ${localStorage.getItem("authToken")}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) return rejectWithValue(data);
+      return data;
+    } catch (error) {
+      return rejectWithValue({ message: error.message });
+    }
+  },
+);
+
+export const fetchTranslationHistory = createAsyncThunk(
+  "translation/history",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`${baseurl}/api/translation/history/`, {
+        method: "GET",
+        headers: {
+          Authorization: `Token ${localStorage.getItem("authToken")}`,
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) return rejectWithValue(data);
+      return data;
+    } catch (error) {
+      return rejectWithValue({ message: error.message });
+    }
+  },
+);
+
 // Initial state — rehydrate from localStorage on every page load/tab switch
 const storedToken = localStorage.getItem("authToken");
 
@@ -120,6 +214,24 @@ const initialState = {
   signupSuccess: false,
   otpVerified: false,
   signupEmail: null,
+
+  ocrResult: null,
+  ocrLoading: false,
+  ocrError: null,
+
+  // Translation
+  translationResult: null,
+  translationLoading: false,
+  translationError: null,
+
+  // OCR Translate
+  ocrTranslateResult: null,
+  ocrTranslateLoading: false,
+  ocrTranslateError: null,
+
+  translationHistory: [],
+  translationHistoryLoading: false,
+  translationHistoryError: null,
 };
 
 const authSlice = createSlice({
@@ -135,6 +247,9 @@ const authSlice = createSlice({
       state.signupEmail = null;
       localStorage.removeItem("authToken");
       localStorage.removeItem("refreshToken");
+      state.translationHistory = [];
+      state.translationHistoryLoading = false;
+      state.translationHistoryError = null;
     },
     clearError: (state) => {
       state.error = null;
@@ -144,6 +259,22 @@ const authSlice = createSlice({
     },
     resetOtpVerified: (state) => {
       state.otpVerified = false;
+    },
+    resetOcrResult: (state) => {
+      state.ocrResult = null;
+      state.ocrError = null;
+    },
+    resetTranslationResult: (state) => {
+      state.translationResult = null;
+      state.translationError = null;
+    },
+    resetOcrTranslateResult: (state) => {
+      state.ocrTranslateResult = null;
+      state.ocrTranslateError = null;
+    },
+    clearTranslationHistory: (state) => {
+      state.translationHistory = [];
+      state.translationHistoryError = null;
     },
   },
   extraReducers: (builder) => {
@@ -252,10 +383,91 @@ const authSlice = createSlice({
           action.payload?.error ||
           "Google login failed";
       });
+
+    builder
+      .addCase(extractOCR.pending, (state) => {
+        state.ocrLoading = true;
+        state.ocrError = null;
+        state.ocrResult = null;
+      })
+      .addCase(extractOCR.fulfilled, (state, action) => {
+        state.ocrLoading = false;
+        state.ocrResult = action.payload;
+      })
+      .addCase(extractOCR.rejected, (state, action) => {
+        state.ocrLoading = false;
+        state.ocrError =
+          action.payload?.message ||
+          action.payload?.error ||
+          "OCR extraction failed";
+      });
+
+    // Translation
+    builder
+      .addCase(translateText.pending, (state) => {
+        state.translationLoading = true;
+        state.translationError = null;
+        state.translationResult = null;
+      })
+      .addCase(translateText.fulfilled, (state, action) => {
+        state.translationLoading = false;
+        state.translationResult = action.payload;
+      })
+      .addCase(translateText.rejected, (state, action) => {
+        state.translationLoading = false;
+        state.translationError =
+          action.payload?.message ||
+          action.payload?.error ||
+          "Translation failed";
+      });
+
+    // OCR Translate
+    builder
+      .addCase(ocrTranslate.pending, (state) => {
+        state.ocrTranslateLoading = true;
+        state.ocrTranslateError = null;
+        state.ocrTranslateResult = null;
+      })
+      .addCase(ocrTranslate.fulfilled, (state, action) => {
+        state.ocrTranslateLoading = false;
+        state.ocrTranslateResult = action.payload;
+      })
+      .addCase(ocrTranslate.rejected, (state, action) => {
+        state.ocrTranslateLoading = false;
+        state.ocrTranslateError =
+          action.payload?.message ||
+          action.payload?.error ||
+          "OCR translation failed";
+      });
+
+    builder
+      .addCase(fetchTranslationHistory.pending, (state) => {
+        state.translationHistoryLoading = true;
+        state.translationHistoryError = null;
+      })
+      .addCase(fetchTranslationHistory.fulfilled, (state, action) => {
+        state.translationHistoryLoading = false;
+        state.translationHistory = action.payload;
+      })
+      .addCase(fetchTranslationHistory.rejected, (state, action) => {
+        state.translationHistoryLoading = false;
+        state.translationHistoryError =
+          action.payload?.message ||
+          action.payload?.error ||
+          "Failed to fetch translation history";
+      });
   },
 });
 
-export const { logout, clearError, resetSignupSuccess, resetOtpVerified } =
-  authSlice.actions;
+export const {
+  logout,
+  clearError,
+  resetSignupSuccess,
+  resetOtpVerified,
+  resetOcrResult,
+  resetTranslationResult,
+  resetOcrTranslateResult,
+  clearTranslationHistory,
+} = authSlice.actions;
 
 export default authSlice.reducer;
