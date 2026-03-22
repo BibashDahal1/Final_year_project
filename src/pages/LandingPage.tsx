@@ -1,9 +1,18 @@
 import React from "react";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 
 const LandingPage = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useSelector((state: any) => state.auth);
+
   const handleGetStarted = () => {
-    window.dispatchEvent(new CustomEvent("openSignupModal"));
+    if (isAuthenticated) {
+      navigate("/chat");
+    } else {
+      window.dispatchEvent(new CustomEvent("openSignupModal"));
+    }
   };
 
   return (
@@ -24,7 +33,7 @@ const LandingPage = () => {
                 onClick={handleGetStarted}
                 className="bg-white text-black rounded-2xl h-10 w-40 text-lg hover:bg-amber-200 hover:scale-110 transition-all"
               >
-                Get started Free
+                {isAuthenticated ? "Go to Zone" : "Get started Free"}
               </button>
             </div>
           </div>

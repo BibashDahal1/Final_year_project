@@ -1,654 +1,839 @@
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { History } from "lucide-react";
-import {
-  Upload,
-  FileText,
-  FileImage,
-  File,
-  X,
-  Languages,
-  Download,
-  CheckCircle,
-  AlertCircle,
-  Loader,
-} from "lucide-react";
-import NavBar from "./Navbar";
+import Navbar from "./Navbar";
 
-const Translator = () => {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [fileType, setFileType] = useState(null);
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [isTranslated, setIsTranslated] = useState(false);
-  const [translatedPreviewUrl, setTranslatedPreviewUrl] = useState(null);
-  const [error, setError] = useState(null);
-  const [sourceLang, setSourceLang] = useState("auto");
-  const [targetLang, setTargetLang] = useState("en");
+const sparkleVariants = {
+  animate: {
+    scale: [0, 1, 0],
+    opacity: [0, 1, 0],
+    rotate: [0, 180, 360],
+    transition: { duration: 2, repeat: Infinity, repeatDelay: 1 },
+  },
+};
 
-  const [showHistory, setShowHistory] = useState(false);
-  const [translationHistory, setTranslationHistory] = useState([
-    {
-      id: 1,
-      fileName: "document1.pdf",
-      sourceLang: "English",
-      targetLang: "Nepali",
-      date: "2024-01-20",
-      time: "10:30 AM",
-    },
-    {
-      id: 2,
-      fileName: "image2.jpg",
-      sourceLang: "Nepali",
-      targetLang: "English",
-      date: "2024-01-19",
-      time: "03:45 PM",
-    },
-  ]);
+// Realistic layered Himalayan mountain SVG background
+function MountainBackground() {
+  return (
+    <div
+      className="absolute inset-0 pointer-events-none overflow-hidden"
+      style={{ zIndex: 0 }}
+    >
+      {/* Sky gradient */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(180deg, #0f0c29 0%, #1a1060 18%, #2d1b69 35%, #4a2080 50%, #6b3fa0 65%, #9b6dca 78%, #c8a4e8 88%, #e8d5f5 100%)",
+        }}
+      />
 
+      {/* Stars layer */}
+      <svg className="absolute inset-0 w-full h-full" style={{ opacity: 0.7 }}>
+        {[...Array(80)].map((_, i) => {
+          const x = (i * 137.508) % 100;
+          const y = (i * 79.3) % 55;
+          const r = 0.4 + (i % 4) * 0.3;
+          const opacity = 0.3 + (i % 5) * 0.14;
+          return (
+            <circle
+              key={i}
+              cx={`${x}%`}
+              cy={`${y}%`}
+              r={r}
+              fill="white"
+              opacity={opacity}
+            />
+          );
+        })}
+        {/* Moon glow */}
+        <circle cx="82%" cy="12%" r="28" fill="rgba(255,255,220,0.12)" />
+        <circle cx="82%" cy="12%" r="18" fill="rgba(255,255,210,0.18)" />
+        <circle cx="82%" cy="12%" r="10" fill="rgba(255,255,200,0.35)" />
+        <circle cx="82%" cy="12%" r="5" fill="rgba(255,255,230,0.6)" />
+      </svg>
+
+      {/* Aurora / atmospheric glow */}
+      <div
+        className="absolute inset-x-0"
+        style={{
+          top: "10%",
+          height: "35%",
+          background:
+            "radial-gradient(ellipse 80% 50% at 30% 30%, rgba(100,60,200,0.18) 0%, transparent 70%)",
+        }}
+      />
+      <div
+        className="absolute inset-x-0"
+        style={{
+          top: "5%",
+          height: "40%",
+          background:
+            "radial-gradient(ellipse 60% 40% at 70% 20%, rgba(60,180,200,0.08) 0%, transparent 65%)",
+        }}
+      />
+
+      {/* === FAR BACKGROUND RANGE (lightest, most distant) === */}
+      <svg
+        viewBox="0 0 1440 340"
+        preserveAspectRatio="xMidYMax slice"
+        className="absolute inset-x-0"
+        style={{ bottom: 0, width: "100%", height: "75%" }}
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          <linearGradient id="farGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#7b5ea7" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#4a2d82" stopOpacity="0.65" />
+          </linearGradient>
+          <linearGradient id="midGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#5c3d9e" stopOpacity="0.75" />
+            <stop offset="100%" stopColor="#2d1b69" stopOpacity="0.9" />
+          </linearGradient>
+          <linearGradient id="nearGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b2064" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#1a0f45" stopOpacity="1" />
+          </linearGradient>
+          <linearGradient id="snowFar" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f0ecff" stopOpacity="0.9" />
+            <stop offset="60%" stopColor="#d4c8f0" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#9b7dd4" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="snowNear" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+            <stop offset="50%" stopColor="#e8deff" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#7c5abf" stopOpacity="0" />
+          </linearGradient>
+          <filter id="blur1">
+            <feGaussianBlur stdDeviation="2.5" />
+          </filter>
+          <filter id="blur2">
+            <feGaussianBlur stdDeviation="1.2" />
+          </filter>
+        </defs>
+
+        {/* Far range silhouette — very soft, high altitude */}
+        <path
+          d="M0 260
+             L60 210 L110 190 L155 175 L185 155 L210 148 L235 160 L260 140 
+             L290 118 L320 130 L345 115 L370 105 L390 118 L415 100 
+             L440 88 L465 100 L490 112 L510 95 L535 80 L560 92 
+             L585 105 L610 88 L635 75 L660 85 L690 70 L715 82 
+             L740 95 L765 80 L790 68 L815 78 L840 90 L865 75 
+             L890 65 L915 78 L940 90 L965 78 L990 68 
+             L1015 80 L1040 95 L1065 82 L1090 70 L1115 82 
+             L1140 95 L1165 108 L1190 95 L1215 110 L1240 125 
+             L1265 115 L1290 130 L1315 118 L1340 135 L1365 150 
+             L1390 165 L1415 178 L1440 195
+             L1440 340 L0 340 Z"
+          fill="url(#farGrad)"
+          filter="url(#blur1)"
+        />
+
+        {/* Far range snow caps */}
+        <path
+          d="M440 88 L450 84 L460 88 L465 100 L455 96 L445 100 Z"
+          fill="url(#snowFar)"
+          filter="url(#blur1)"
+        />
+        <path
+          d="M535 80 L545 75 L555 80 L560 92 L550 88 L540 92 Z"
+          fill="url(#snowFar)"
+          filter="url(#blur1)"
+        />
+        <path
+          d="M635 75 L648 68 L660 75 L658 82 L648 78 L638 83 Z"
+          fill="url(#snowFar)"
+          filter="url(#blur1)"
+        />
+        <path
+          d="M685 70 L698 62 L712 70 L710 80 L698 75 L688 80 Z"
+          fill="url(#snowFar)"
+          filter="url(#blur1)"
+        />
+        <path
+          d="M785 68 L798 60 L812 68 L810 78 L798 73 L788 78 Z"
+          fill="url(#snowFar)"
+          filter="url(#blur1)"
+        />
+        <path
+          d="M885 65 L898 57 L912 65 L910 75 L898 70 L888 75 Z"
+          fill="url(#snowFar)"
+          filter="url(#blur1)"
+        />
+
+        {/* Mid range — sharper, more defined peaks */}
+        <path
+          d="M0 295
+             L40 258 L75 240 L100 222 L125 210 L150 225 L175 205
+             L200 188 L225 198 L250 178 L275 162 L300 178
+             L325 158 L350 142 L370 155 L390 138 L410 122
+             L430 135 L450 148 L470 132 L490 115 L510 128
+             L530 145 L550 128 L570 112 L590 125 L615 110
+             L638 95 L658 110 L678 125 L698 110 L718 95
+             L738 108 L758 125 L778 110 L800 95 L820 108
+             L842 122 L862 108 L882 95 L902 108 L922 122
+             L942 110 L962 95 L982 110 L1002 125 L1022 110
+             L1042 125 L1062 140 L1082 128 L1105 115
+             L1128 128 L1150 142 L1172 158 L1192 172
+             L1215 185 L1238 198 L1260 212 L1282 225
+             L1308 238 L1332 252 L1360 265 L1390 278
+             L1415 288 L1440 298
+             L1440 340 L0 340 Z"
+          fill="url(#midGrad)"
+          filter="url(#blur2)"
+        />
+
+        {/* Mid range snow — Everest-like peak around x=638 */}
+        <path
+          d="M615 110 L625 104 L632 98 L638 95 L644 98 L650 104 
+             L658 110 L652 108 L644 106 L638 104 L632 106 L624 108 Z"
+          fill="url(#snowFar)"
+          opacity="0.85"
+        />
+        <path
+          d="M700 95 L710 88 L718 95 L714 103 L710 100 L706 103 Z"
+          fill="url(#snowFar)"
+          opacity="0.8"
+        />
+        <path
+          d="M490 115 L500 108 L510 115 L506 124 L500 120 L494 124 Z"
+          fill="url(#snowFar)"
+          opacity="0.8"
+        />
+        <path
+          d="M800 95 L810 88 L820 95 L816 104 L810 100 L804 104 Z"
+          fill="url(#snowFar)"
+          opacity="0.8"
+        />
+        <path
+          d="M880 95 L890 88 L902 95 L898 104 L890 100 L884 104 Z"
+          fill="url(#snowFar)"
+          opacity="0.8"
+        />
+
+        {/* Foreground dark hills for depth */}
+        <path
+          d="M0 320
+             L80 298 L160 285 L240 298 L310 278 L380 268 
+             L440 280 L500 265 L560 252 L620 265 L680 252
+             L740 265 L800 278 L860 265 L920 252 L980 265
+             L1040 278 L1100 268 L1160 280 L1220 292
+             L1300 305 L1380 315 L1440 320
+             L1440 340 L0 340 Z"
+          fill="url(#nearGrad)"
+        />
+      </svg>
+
+      {/* Ground fog / mist layer at base */}
+      <div
+        className="absolute inset-x-0"
+        style={{
+          bottom: 0,
+          height: "22%",
+          background:
+            "linear-gradient(0deg, rgba(180,150,220,0.22) 0%, rgba(140,100,200,0.1) 50%, transparent 100%)",
+          backdropFilter: "blur(0px)",
+        }}
+      />
+
+      {/* Light atmospheric haze over mountains */}
+      <div
+        className="absolute inset-x-0"
+        style={{
+          bottom: "15%",
+          height: "30%",
+          background:
+            "linear-gradient(0deg, rgba(200,170,240,0.12) 0%, transparent 100%)",
+        }}
+      />
+    </div>
+  );
+}
+
+export default function NepaliLensUI() {
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [translateEnabled, setTranslateEnabled] = useState(true);
   const fileInputRef = useRef(null);
-  const dropZoneRef = useRef(null);
-
-  const languages = [
-    { code: "en", name: "English" },
-    { code: "ne", name: "Nepali" },
-  ];
-
-  const getFileIcon = (type) => {
-    if (type?.startsWith("image/")) return <FileImage className="w-8 h-8" />;
-    if (type?.includes("pdf")) return <FileText className="w-8 h-8" />;
-    return <File className="w-8 h-8" />;
-  };
-
-  const getFileTypeCategory = (type) => {
-    if (type?.startsWith("image/")) return "image";
-    if (type?.includes("pdf")) return "pdf";
-    if (type?.includes("word") || type?.includes("document")) return "document";
-    return "other";
-  };
-
-  const validateFile = (file) => {
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    const allowedTypes = [
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
-
-    if (file.size > maxSize) {
-      throw new Error("File size exceeds 10MB limit");
-    }
-
-    if (!allowedTypes.includes(file.type)) {
-      throw new Error(
-        "Unsupported file type. Please upload an image, PDF, or Word document",
-      );
-    }
-
-    return true;
-  };
-
-  const handleFileSelect = (file) => {
-    try {
-      setError(null);
-      setIsTranslated(false);
-      setTranslatedPreviewUrl(null);
-
-      if (!file) return;
-
-      validateFile(file);
-
-      setSelectedFile(file);
-      setFileType(getFileTypeCategory(file.type));
-
-      // Create preview for images
-      if (file.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setPreviewUrl(e.target.result);
-        };
-        reader.onerror = () => {
-          setError("Failed to read image file");
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setPreviewUrl(null);
-      }
-    } catch (err) {
-      setError(err.message);
-      setSelectedFile(null);
-      setPreviewUrl(null);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const file = e.target.files?.[0];
-    handleFileSelect(file);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (dropZoneRef.current) {
-      dropZoneRef.current.classList.add("border-teal-500", "bg-teal-50");
-    }
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (dropZoneRef.current) {
-      dropZoneRef.current.classList.remove("border-teal-500", "bg-teal-50");
-    }
-  };
 
   const handleDrop = (e) => {
     e.preventDefault();
-    e.stopPropagation();
-
-    if (dropZoneRef.current) {
-      dropZoneRef.current.classList.remove("border-teal-500", "bg-teal-50");
-    }
-
-    const file = e.dataTransfer.files?.[0];
-    handleFileSelect(file);
-  };
-
-  const handleTranslate = async () => {
-    if (!selectedFile) {
-      setError("Please select a file first");
-      return;
-    }
-
-    if (sourceLang !== "auto" && sourceLang === targetLang) {
-      setError("Source and target languages cannot be the same");
-      return;
-    }
-
-    setIsTranslating(true);
-    setError(null);
-
-    try {
-      // Simulate translation process
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-
-      setTranslatedPreviewUrl(previewUrl || "translated");
-      setIsTranslated(true);
-
-      const newHistoryItem = {
-        id: Date.now(),
-        fileName: selectedFile.name,
-        sourceLang:
-          languages.find((l) => l.code === sourceLang)?.name || sourceLang,
-        targetLang:
-          languages.find((l) => l.code === targetLang)?.name || targetLang,
-        date: new Date().toLocaleDateString(),
-        time: new Date().toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
-
-      setTranslationHistory((prev) => [newHistoryItem, ...prev]);
-    } catch (err) {
-      setError("Translation failed. Please try again.");
-    } finally {
-      setIsTranslating(false);
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setUploadedImage(url);
     }
   };
 
-  const handleExport = () => {
-    if (!isTranslated || !selectedFile) {
-      setError("No translated document to export");
-      return;
-    }
-
-    try {
-      // In real implementation, this would download the translated file
-      const fileName =
-        selectedFile.name.replace(/\.[^/.]+$/, "") +
-        "_translated" +
-        selectedFile.name.match(/\.[^/.]+$/)[0];
-
-      // Simulate download
-      const link = document.createElement("a");
-      link.href = translatedPreviewUrl || "#";
-      link.download = fileName;
-      link.click();
-
-      // Show success message
-      const successMsg = document.createElement("div");
-      successMsg.className =
-        "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50";
-      successMsg.textContent = "Document exported successfully!";
-      document.body.appendChild(successMsg);
-      setTimeout(() => successMsg.remove(), 3000);
-    } catch (err) {
-      setError("Failed to export document");
-    }
-  };
-
-  const handleReset = () => {
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setFileType(null);
-    setIsTranslated(false);
-    setTranslatedPreviewUrl(null);
-    setError(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setUploadedImage(url);
     }
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-gradient-to-br from-gray-50 to-gray-100">
-      <NavBar />
-
-      <button
-        onClick={() => setShowHistory(true)}
-        className="fixed top-20 left-4 z-40 bg-teal-500 hover:bg-teal-600 text-white p-3 rounded-full shadow-lg transition-all hover:scale-110"
-        title="Translation History"
+    <>
+      <Navbar />
+      <div
+        className="min-h-screen w-full flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden"
+        style={{ fontFamily: "'Outfit', 'DM Sans', sans-serif" }}
       >
-        <History className="w-6 h-6" />
-      </button>
+        <MountainBackground />
 
-      <div className="flex-1 overflow-y-auto px-4 py-8 md:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-800 mb-2">
-              OCRio Translator
-            </h1>
-            <p className="text-gray-600">
-              Upload your documents and translate them instantly
-            </p>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-red-800 font-medium">Error</p>
-                <p className="text-red-600 text-sm">{error}</p>
-              </div>
-              <button
-                onClick={() => setError(null)}
-                className="ml-auto text-red-500 hover:text-red-700"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          )}
-
-          {/* Language Selection */}
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <div className="flex items-center space-x-4 mb-4">
-              <Languages className="w-6 h-6 text-teal-500" />
-              <h2 className="text-xl font-semibold text-gray-800">
-                Translation Settings
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Source Language
-                </label>
-                <select
-                  value={sourceLang}
-                  onChange={(e) => setSourceLang(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                >
-                  {languages.map((lang) => (
-                    <option key={lang.code} value={lang.code}>
-                      {lang.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Target Language
-                </label>
-                <select
-                  value={targetLang}
-                  onChange={(e) => setTargetLang(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                >
-                  {languages
-                    .filter((lang) => lang.code !== "auto")
-                    .map((lang) => (
-                      <option key={lang.code} value={lang.code}>
-                        {lang.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Upload Section */}
-          {!selectedFile ? (
-            <div
-              ref={dropZoneRef}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className="bg-white rounded-xl shadow-lg p-12 border-2 border-dashed border-gray-300 hover:border-teal-400 transition-all duration-300"
-            >
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-teal-100 rounded-full mb-6">
-                  <Upload className="w-10 h-10 text-teal-600" />
-                </div>
-                <h3 className="text-2xl font-semibold text-gray-800 mb-2">
-                  Upload Your Document
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  Drag and drop your file here, or click to browse
-                </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,.pdf,.doc,.docx"
-                  onChange={handleInputChange}
-                  className="hidden"
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-3 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
-                >
-                  Choose File
-                </button>
-                <p className="text-sm text-gray-500 mt-4">
-                  Supported formats: JPG, PNG, PDF, DOC, DOCX (Max 10MB)
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Original Document */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    Original Document
-                  </h3>
-                  <button
-                    onClick={handleReset}
-                    className="text-gray-500 hover:text-red-500 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* File Info */}
-                <div className="flex items-center space-x-4 mb-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="text-teal-500">
-                    {getFileIcon(selectedFile.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-800 truncate">
-                      {selectedFile.name}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {(selectedFile.size / 1024).toFixed(1)} KB
-                    </p>
-                  </div>
-                </div>
-
-                {/* Preview */}
-                <div className="border-2 border-gray-200 rounded-lg overflow-hidden">
-                  {fileType === "image" && previewUrl ? (
-                    <img
-                      src={previewUrl}
-                      alt="Preview"
-                      className="w-full h-auto max-h-96 object-contain bg-gray-50"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-64 bg-gray-50">
-                      <div className="text-center">
-                        {getFileIcon(selectedFile.type)}
-                        <p className="mt-2 text-gray-600">
-                          Preview not available
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Translated Document */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    Translated Document
-                  </h3>
-                  {isTranslated && (
-                    <div className="flex items-center space-x-2 text-green-600">
-                      <CheckCircle className="w-5 h-5" />
-                      <span className="text-sm font-medium">Completed</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Preview */}
-                <div className="border-2 border-gray-200 rounded-lg overflow-hidden mb-4">
-                  {isTranslated &&
-                  fileType === "image" &&
-                  translatedPreviewUrl ? (
-                    <img
-                      src={translatedPreviewUrl}
-                      alt="Translated Preview"
-                      className="w-full h-auto max-h-96 object-contain bg-gray-50"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-64 bg-gray-50">
-                      <div className="text-center">
-                        {isTranslating ? (
-                          <>
-                            <Loader className="w-12 h-12 text-teal-500 animate-spin mx-auto mb-3" />
-                            <p className="text-gray-600 font-medium">
-                              Translating...
-                            </p>
-                            <p className="text-sm text-gray-500 mt-1">
-                              This may take a moment
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <Languages className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                            <p className="text-gray-600">
-                              Translation will appear here
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="space-y-3">
-                  <button
-                    onClick={handleTranslate}
-                    disabled={isTranslating || isTranslated}
-                    className="w-full bg-teal-500 hover:bg-teal-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
-                  >
-                    {isTranslating ? (
-                      <>
-                        <Loader className="w-5 h-5 animate-spin" />
-                        <span>Translating...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Languages className="w-5 h-5" />
-                        <span>
-                          {isTranslated ? "Translated" : "Translate Document"}
-                        </span>
-                      </>
-                    )}
-                  </button>
-
-                  {isTranslated && (
-                    <button
-                      onClick={handleExport}
-                      className="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
-                    >
-                      <Download className="w-5 h-5" />
-                      <span>Export Translated Document</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Features Section */}
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-lg p-6 shadow-md">
-              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mb-4">
-                <FileImage className="w-6 h-6 text-teal-600" />
-              </div>
-              <h3 className="font-semibold text-gray-800 mb-2">
-                Multiple Formats
-              </h3>
-              <p className="text-sm text-gray-600">
-                Support for images, PDFs, and Word documents
-              </p>
-            </div>
-            <div className="bg-white rounded-lg p-6 shadow-md">
-              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mb-4">
-                <Languages className="w-6 h-6 text-teal-600" />
-              </div>
-              <h3 className="font-semibold text-gray-800 mb-2">
-                Multi-Language
-              </h3>
-              <p className="text-sm text-gray-600">
-                Translate to and from 2+ languages
-              </p>
-            </div>
-            <div className="bg-white rounded-lg p-6 shadow-md">
-              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mb-4">
-                <Download className="w-6 h-6 text-teal-600" />
-              </div>
-              <h3 className="font-semibold text-gray-800 mb-2">Easy Export</h3>
-              <p className="text-sm text-gray-600">
-                Download your translated documents instantly
-              </p>
-            </div>
-          </div>
+        {/* Proper Devanagari watermark — centered, correct Unicode */}
+        <div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden"
+          style={{ zIndex: 1 }}
+        >
+          <span
+            style={{
+              fontSize: "clamp(100px, 18vw, 240px)",
+              color: "rgba(220, 200, 255, 0.07)",
+              fontWeight: 900,
+              fontFamily: "'Noto Sans Devanagari', 'Mangal', serif",
+              letterSpacing: "0.05em",
+              userSelect: "none",
+              whiteSpace: "nowrap",
+              textShadow: "0 0 80px rgba(180,140,255,0.12)",
+            }}
+          >
+            {/* नेपाली — "Nepali" in Devanagari */}
+            भाषा दर्पण
+          </span>
         </div>
-      </div>
 
-      <AnimatePresence>
-        {showHistory && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowHistory(false)}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            />
-
-            {/* Sliding Panel */}
-            <motion.div
-              initial={{ x: -320 }}
-              animate={{ x: 0 }}
-              exit={{ x: -320 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 h-full w-80 bg-white shadow-2xl z-50 flex flex-col"
+        {/* Main content */}
+        <div className="relative z-10 w-full max-w-4xl mt-16">
+          {/* Devanagari script accent above title */}
+          <motion.div
+            className="text-center mb-2"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <span
+              style={{
+                fontSize: "1.15rem",
+                color: "rgba(200,170,255,0.75)",
+                fontFamily: "'Noto Sans Devanagari', 'Mangal', serif",
+                letterSpacing: "0.15em",
+                fontWeight: 500,
+              }}
             >
-              {/* Header */}
-              <div className="bg-gradient-to-r from-teal-500 to-teal-600 p-6 text-white">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-3">
-                    <History className="w-6 h-6" />
-                    <h2 className="text-xl font-bold">Translation History</h2>
-                  </div>
-                  <button
-                    onClick={() => setShowHistory(false)}
-                    className="hover:bg-white/20 p-1 rounded-full transition"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                <p className="text-sm text-teal-50">
-                  {translationHistory.length} translations
-                </p>
-              </div>
+              {/* "Smart OCR" in Devanagari */}
+              स्मार्ट ओसीआर · अनुवाद · पहचान
+            </span>
+          </motion.div>
 
-              {/* History List */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {translationHistory.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                    <History className="w-16 h-16 mb-3 opacity-30" />
-                    <p className="text-sm">No translation history yet</p>
-                  </div>
+          {/* Hero Title */}
+          <motion.div
+            className="text-center mb-10"
+            initial={{ opacity: 0, y: -30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: "easeOut", delay: 0.1 }}
+          >
+            <h1
+              className="text-5xl md:text-6xl font-extrabold tracking-tight mb-4 leading-tight"
+              style={{ color: "#f0ecff" }}
+            >
+              Unlock{" "}
+              <span
+                style={{
+                  background:
+                    "linear-gradient(90deg, #c084fc, #e879f9, #a855f7)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  textShadow: "none",
+                }}
+              >
+                Nepali Text
+              </span>
+              <br />
+              <span style={{ color: "#e2d9f3" }}>Instantly with AI</span>
+            </h1>
+            <p
+              className="text-base md:text-lg font-medium"
+              style={{ color: "rgba(210,190,255,0.75)" }}
+            >
+              Advanced OCR for Images, Documents &amp; Screenshots &nbsp;·&nbsp;
+              Seamless{" "}
+              <span
+                style={{
+                  fontFamily: "'Noto Sans Devanagari', serif",
+                  color: "rgba(220,180,255,0.9)",
+                }}
+              >
+                नेपाली
+              </span>{" "}
+              → English Translation
+            </p>
+          </motion.div>
+
+          {/* Upload + Preview Row */}
+          <motion.div
+            className="flex flex-col md:flex-row gap-5 mb-6 items-stretch"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+          >
+            {/* Drop Zone */}
+            <motion.div
+              className="flex-1 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center p-10 cursor-pointer relative"
+              style={{
+                borderColor: isDragging ? "#c084fc" : "rgba(167,139,250,0.45)",
+                background: isDragging
+                  ? "rgba(124,58,237,0.12)"
+                  : "rgba(20,12,55,0.55)",
+                backdropFilter: "blur(16px)",
+                minHeight: 210,
+                boxShadow: isDragging
+                  ? "0 0 40px rgba(168,85,247,0.25) inset"
+                  : "0 8px 32px rgba(0,0,0,0.3)",
+              }}
+              animate={{ scale: isDragging ? 1.02 : 1 }}
+              transition={{ duration: 0.2 }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <motion.div
+                animate={{ y: isDragging ? -8 : [0, -5, 0] }}
+                transition={
+                  isDragging
+                    ? { duration: 0.2 }
+                    : { duration: 2, repeat: Infinity, ease: "easeInOut" }
+                }
+                className="mb-4"
+              >
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, rgba(124,58,237,0.4), rgba(168,85,247,0.3))",
+                    border: "1px solid rgba(167,139,250,0.35)",
+                  }}
+                >
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M12 16V8M12 8L9 11M12 8L15 11"
+                      stroke="#c084fc"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M3 16.5V18.75C3 19.993 4.007 21 5.25 21H18.75C19.993 21 21 19.993 21 18.75V16.5"
+                      stroke="#c084fc"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M3 9C3 6.515 5.015 4.5 7.5 4.5H16.5C18.985 4.5 21 6.515 21 9"
+                      stroke="#a78bfa"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeDasharray="3 2"
+                    />
+                  </svg>
+                </div>
+              </motion.div>
+              <p
+                className="text-center font-medium text-sm mb-4"
+                style={{ color: "rgba(220,200,255,0.8)" }}
+              >
+                Drop your image, PDF, or
+                <br />
+                screenshot here
+              </p>
+              {/* Devanagari hint */}
+              <p
+                className="text-center text-xs mb-4"
+                style={{
+                  fontFamily: "'Noto Sans Devanagari', serif",
+                  color: "rgba(180,150,255,0.55)",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                {/* "Upload your file" in Nepali */}
+                आफ्नो फाइल अपलोड गर्नुहोस्
+              </p>
+              <motion.button
+                className="px-6 py-2.5 rounded-xl text-white text-sm font-semibold shadow-md"
+                style={{
+                  background: "linear-gradient(135deg, #7c3aed, #9333ea)",
+                  boxShadow: "0 4px 20px rgba(124,58,237,0.45)",
+                }}
+                whileHover={{
+                  scale: 1.05,
+                  boxShadow: "0 8px 25px rgba(124,58,237,0.55)",
+                }}
+                whileTap={{ scale: 0.97 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fileInputRef.current?.click();
+                }}
+              >
+                Browse Files
+              </motion.button>
+            </motion.div>
+
+            {/* Preview Card */}
+            <motion.div
+              className="relative rounded-2xl overflow-hidden shadow-2xl flex-shrink-0"
+              style={{
+                width: "clamp(200px, 40%, 240px)",
+                minHeight: 210,
+                background: "rgba(12, 8, 40, 0.7)",
+                border: "1px solid rgba(167,139,250,0.25)",
+                backdropFilter: "blur(16px)",
+              }}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.35 }}
+            >
+              {/* Toggle button */}
+              <motion.button
+                className="absolute top-3 right-3 z-10"
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setTranslateEnabled((v) => !v)}
+              >
+                <div
+                  className="w-11 h-6 rounded-full flex items-center px-1 transition-all duration-300"
+                  style={{
+                    background: translateEnabled
+                      ? "linear-gradient(90deg,#7c3aed,#9333ea)"
+                      : "rgba(80,60,120,0.5)",
+                  }}
+                >
+                  <motion.div
+                    className="w-4 h-4 rounded-full bg-white shadow"
+                    animate={{ x: translateEnabled ? 18 : 0 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                </div>
+              </motion.button>
+
+              {/* Image preview */}
+              <AnimatePresence>
+                {uploadedImage ? (
+                  <motion.img
+                    key="preview"
+                    src={uploadedImage}
+                    alt="Uploaded preview"
+                    className="w-full h-full object-cover"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  />
                 ) : (
-                  translationHistory.map((item) => (
-                    <motion.div
-                      key={item.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-gray-50 hover:bg-gray-100 rounded-lg p-4 cursor-pointer transition-all border border-gray-200 hover:border-teal-300 hover:shadow-md"
-                      onClick={() => {
-                        // Handle clicking on history item
-                        console.log("Load translation:", item.id);
+                  <motion.div
+                    key="placeholder"
+                    className="w-full h-full flex flex-col items-center justify-center p-5 pt-10"
+                    style={{ minHeight: 210 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    {/* Fake Devanagari text preview lines */}
+                    <p
+                      className="text-xs mb-3 text-center leading-relaxed"
+                      style={{
+                        fontFamily: "'Noto Sans Devanagari', serif",
+                        color: "rgba(200,180,255,0.6)",
+                        fontSize: "0.7rem",
                       }}
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center space-x-2 flex-1 min-w-0">
-                          <FileText className="w-4 h-4 text-teal-500 flex-shrink-0" />
-                          <p className="font-medium text-gray-800 truncate text-sm">
-                            {item.fileName}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2 text-xs text-gray-600 mb-2">
-                        <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                          {item.sourceLang}
-                        </span>
-                        <Languages className="w-3 h-3" />
-                        <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded">
-                          {item.targetLang}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>{item.date}</span>
-                        <span>{item.time}</span>
-                      </div>
-                    </motion.div>
-                  ))
+                      {/* Sample Nepali text snippet */}
+                      यो एक परीक्षण पाठ हो।
+                      <br />
+                      नेपाली भाषामा लेखिएको।
+                    </p>
+                    {[...Array(4)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="rounded mb-2"
+                        style={{
+                          height: 6,
+                          width: `${65 + ((i * 11) % 28)}%`,
+                          background:
+                            i === 0
+                              ? "linear-gradient(90deg,#7c3aed,#c084fc)"
+                              : "rgba(120,90,180,0.3)",
+                        }}
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ delay: 0.4 + i * 0.08 }}
+                      />
+                    ))}
+                  </motion.div>
                 )}
-              </div>
+              </AnimatePresence>
 
-              {/* Footer */}
-              <div className="p-4 border-t border-gray-200">
-                <button
-                  onClick={() => {
-                    if (window.confirm("Clear all translation history?")) {
-                      setTranslationHistory([]);
-                    }
+              {/* Translate badge */}
+              <motion.div
+                className="absolute bottom-3 left-3 right-3 rounded-lg flex items-center justify-between px-3 py-2 text-xs font-semibold"
+                style={{
+                  background: "rgba(15,8,45,0.88)",
+                  backdropFilter: "blur(8px)",
+                  border: "1px solid rgba(167,139,250,0.25)",
+                }}
+                animate={{ opacity: translateEnabled ? 1 : 0.4 }}
+              >
+                <span style={{ color: "#c084fc" }}>
+                  <span style={{ fontFamily: "'Noto Sans Devanagari', serif" }}>
+                    नेपाली
+                  </span>
+                  {" → "}English
+                </span>
+                <div
+                  className="w-8 h-4 rounded-full flex items-center px-0.5 transition-all"
+                  style={{
+                    background: translateEnabled
+                      ? "#7c3aed"
+                      : "rgba(80,60,120,0.5)",
                   }}
-                  className="w-full bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
-                  Clear History
-                </button>
-              </div>
+                  <motion.div
+                    className="w-3 h-3 rounded-full bg-white shadow"
+                    animate={{ x: translateEnabled ? 14 : 0 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                </div>
+              </motion.div>
             </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
+          </motion.div>
 
-export default Translator;
+          {/* Extract & Translate Button */}
+          <motion.div
+            className="flex justify-center mb-10 relative"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.45 }}
+          >
+            {[
+              { top: "-10px", right: "-18px", size: 16 },
+              { top: "10px", right: "-30px", size: 10 },
+              { bottom: "-8px", left: "-22px", size: 12 },
+            ].map((s, i) => (
+              <motion.svg
+                key={i}
+                width={s.size}
+                height={s.size}
+                viewBox="0 0 16 16"
+                className="absolute pointer-events-none"
+                style={{
+                  top: s.top,
+                  right: s.right,
+                  bottom: s.bottom,
+                  left: s.left,
+                }}
+                variants={sparkleVariants}
+                animate="animate"
+                custom={i}
+              >
+                <path
+                  d="M8 0L9.5 6.5L16 8L9.5 9.5L8 16L6.5 9.5L0 8L6.5 6.5Z"
+                  fill="#e879f9"
+                />
+              </motion.svg>
+            ))}
+            <motion.button
+              className="px-10 py-4 rounded-2xl text-white text-base font-bold tracking-wide"
+              style={{
+                background:
+                  "linear-gradient(135deg, #7c3aed 0%, #9333ea 60%, #c026d3 100%)",
+                boxShadow:
+                  "0 8px 40px rgba(124,58,237,0.5), 0 0 0 1px rgba(167,139,250,0.2)",
+              }}
+              whileHover={{
+                scale: 1.05,
+                boxShadow:
+                  "0 12px 50px rgba(124,58,237,0.65), 0 0 0 1px rgba(167,139,250,0.35)",
+              }}
+              whileTap={{ scale: 0.97 }}
+            >
+              ✦ &nbsp;Extract &amp; Translate
+            </motion.button>
+          </motion.div>
+
+          {/* Feature Cards */}
+          <motion.div
+            className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12"
+            initial="hidden"
+            animate="visible"
+            variants={{
+              visible: {
+                transition: { staggerChildren: 0.1, delayChildren: 0.55 },
+              },
+            }}
+          >
+            {[
+              {
+                label: "OCR",
+                devanagari: "ओसीआर",
+                icon: (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <rect
+                      x="3"
+                      y="3"
+                      width="18"
+                      height="18"
+                      rx="3"
+                      stroke="#c084fc"
+                      strokeWidth="2"
+                    />
+                    <path
+                      d="M7 9h2M7 12h2M7 15h2M12 9h5M12 12h5M12 15h5"
+                      stroke="#a78bfa"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                ),
+              },
+              {
+                label: "Recognition",
+                devanagari: "पहचान",
+                icon: (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"
+                      stroke="#c084fc"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                    <rect
+                      x="9"
+                      y="3"
+                      width="6"
+                      height="4"
+                      rx="1"
+                      stroke="#c084fc"
+                      strokeWidth="2"
+                    />
+                    <path
+                      d="M9 12l2 2 4-4"
+                      stroke="#a78bfa"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ),
+              },
+              {
+                label: "Translation",
+                devanagari: "अनुवाद",
+                icon: (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M5 7h14M5 12h8M5 17h5"
+                      stroke="#c084fc"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M15 12l3 5M18 12l-3 5"
+                      stroke="#a78bfa"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                    <rect
+                      x="13"
+                      y="11"
+                      width="8"
+                      height="7"
+                      rx="1.5"
+                      stroke="#c084fc"
+                      strokeWidth="1.5"
+                    />
+                  </svg>
+                ),
+              },
+              {
+                label: "Documents",
+                devanagari: "दस्तावेज",
+                icon: (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
+                      stroke="#c084fc"
+                      strokeWidth="2"
+                    />
+                    <path
+                      d="M14 2v6h6M9 13h6M9 17h4"
+                      stroke="#a78bfa"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                ),
+              },
+            ].map((item) => (
+              <motion.div
+                key={item.label}
+                className="rounded-2xl flex flex-col items-center justify-center p-6 gap-2"
+                style={{
+                  background: "rgba(15, 8, 50, 0.55)",
+                  backdropFilter: "blur(16px)",
+                  border: "1px solid rgba(167,139,250,0.18)",
+                  boxShadow: "0 4px 24px rgba(0,0,0,0.25)",
+                }}
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+                }}
+                whileHover={{
+                  y: -4,
+                  boxShadow: "0 12px 40px rgba(124,58,237,0.3)",
+                  background: "rgba(30, 15, 70, 0.7)",
+                  borderColor: "rgba(192,132,252,0.4)",
+                }}
+              >
+                <div
+                  className="w-14 h-14 rounded-xl flex items-center justify-center"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, rgba(124,58,237,0.35), rgba(168,85,247,0.25))",
+                    border: "1px solid rgba(167,139,250,0.25)",
+                  }}
+                >
+                  {item.icon}
+                </div>
+                <span
+                  className="text-sm font-semibold"
+                  style={{ color: "#e2d9f3" }}
+                >
+                  {item.label}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "'Noto Sans Devanagari', serif",
+                    fontSize: "0.7rem",
+                    color: "rgba(167,139,250,0.65)",
+                  }}
+                >
+                  {item.devanagari}
+                </span>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </div>
+    </>
+  );
+}

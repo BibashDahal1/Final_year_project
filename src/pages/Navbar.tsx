@@ -52,18 +52,9 @@ const Navbar = () => {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [otpError, setOtpError] = useState("");
 
-  // Check if we're on the chat page
-  const isOnChatPage = location.pathname === "/chat";
-
-  // Show logout button if authenticated and on chat page
-  const showLogout = isAuthenticated && isOnChatPage;
-
   // Login handlers
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLoginData({
-      ...loginData,
-      [e.target.name]: e.target.value,
-    });
+    setLoginData({ ...loginData, [e.target.name]: e.target.value });
   };
 
   const handleLoginSubmit = (e: React.FormEvent) => {
@@ -73,10 +64,7 @@ const Navbar = () => {
 
   // Signup handlers
   const handleSignupChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSignupData({
-      ...signupData,
-      [e.target.name]: e.target.value,
-    });
+    setSignupData({ ...signupData, [e.target.name]: e.target.value });
   };
 
   const handleSignupSubmit = (e: React.FormEvent) => {
@@ -117,15 +105,14 @@ const Navbar = () => {
     }
 
     const emailToVerify = signupEmail || signupData.email;
-
-    const otpPayload = {
-      email: emailToVerify,
-      otp: otpString,
-      code: otpString,
-      verification_code: otpString,
-    };
-
-    dispatch(verifyOTP(otpPayload));
+    dispatch(
+      verifyOTP({
+        email: emailToVerify,
+        otp: otpString,
+        code: otpString,
+        verification_code: otpString,
+      }),
+    );
   };
 
   const handleResendOtp = () => {
@@ -206,7 +193,7 @@ const Navbar = () => {
     }
   }, [signupSuccess, isAuthenticated]);
 
-  // Navigate to chat when authenticated from login
+  // Navigate to chat when authenticated from login modal
   useEffect(() => {
     if (isAuthenticated && showLoginModal) {
       setShowLoginModal(false);
@@ -215,10 +202,12 @@ const Navbar = () => {
     }
   }, [isAuthenticated, showLoginModal, navigate]);
 
-  // Navigate to chat when OTP is verified
+  // Navigate to chat when OTP is verified — react to otpVerified alone,
+  // isAuthenticated may land in a later render cycle
   useEffect(() => {
-    if (otpVerified && isAuthenticated) {
+    if (otpVerified) {
       setShowOtpModal(false);
+      setShowSignupModal(false);
       setSignupData({
         username: "",
         email: "",
@@ -227,9 +216,11 @@ const Navbar = () => {
         phone: "",
       });
       setOtp(["", "", "", "", "", ""]);
+      dispatch(resetSignupSuccess());
+      dispatch(clearError());
       navigate("/chat");
     }
-  }, [otpVerified, isAuthenticated, navigate]);
+  }, [otpVerified, navigate, dispatch]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -266,7 +257,7 @@ const Navbar = () => {
     <>
       <nav className="w-full bg-[#0f243f] shadow-md px-4 md:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Left: Company Text */}
+          {/* Left: Logo */}
           <Link
             to="/"
             className="text-xl font-[italiana] font-bold text-white hover:scale-110 transition-transform"
@@ -283,13 +274,21 @@ const Navbar = () => {
               Features
             </Link>
 
-            {showLogout ? (
-              <button
-                onClick={handleLogoutClick}
-                className="px-4 py-2 font-[italiana] rounded-md border-2 border-white text-white hover:scale-110 hover:bg-white/10 transition"
-              >
-                Logout
-              </button>
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to="/chat"
+                  className="px-4 py-2 font-[italiana] rounded-md border-2 border-white text-white hover:scale-110 hover:bg-white/10 transition"
+                >
+                  Zone
+                </Link>
+                <button
+                  onClick={handleLogoutClick}
+                  className="px-4 py-2 font-[italiana] rounded-md border-2 border-red-400 text-red-300 hover:scale-110 hover:bg-red-400/10 transition"
+                >
+                  Logout
+                </button>
+              </>
             ) : (
               <button
                 onClick={handleLoginClick}
@@ -311,7 +310,7 @@ const Navbar = () => {
 
         {/* Mobile Menu */}
         {isOpen && (
-          <div className="md:hidden flex flex-col gap-3 pb-4">
+          <div className="md:hidden flex flex-col gap-3 pb-4 z-50">
             <Link
               to="/features"
               className="text-white font-[italiana] hover:scale-110 transition-transform"
@@ -320,13 +319,22 @@ const Navbar = () => {
               Features
             </Link>
 
-            {showLogout ? (
-              <button
-                onClick={handleLogoutClick}
-                className="text-left text-white font-[italiana] hover:scale-105 transition-transform"
-              >
-                Logout
-              </button>
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to="/chat"
+                  className="text-white font-[italiana] hover:scale-105 transition-transform"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Zone
+                </Link>
+                <button
+                  onClick={handleLogoutClick}
+                  className="text-left text-red-300 font-[italiana] hover:scale-105 transition-transform"
+                >
+                  Logout
+                </button>
+              </>
             ) : (
               <button
                 onClick={handleLoginClick}
@@ -348,9 +356,7 @@ const Navbar = () => {
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
             onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                closeAllModals();
-              }
+              if (e.target === e.currentTarget) closeAllModals();
             }}
           >
             <motion.div
@@ -424,9 +430,7 @@ const Navbar = () => {
                       );
                     }
                   }}
-                  onError={() => {
-                    console.log("Google Login Failed");
-                  }}
+                  onError={() => console.log("Google Login Failed")}
                   useOneTap={false}
                   theme="filled_blue"
                   size="large"
@@ -458,9 +462,7 @@ const Navbar = () => {
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
             onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                closeAllModals();
-              }
+              if (e.target === e.currentTarget) closeAllModals();
             }}
           >
             <motion.div
@@ -561,9 +563,7 @@ const Navbar = () => {
                       );
                     }
                   }}
-                  onError={() => {
-                    console.log("Google Sign Up Failed");
-                  }}
+                  onError={() => console.log("Google Sign Up Failed")}
                   useOneTap={false}
                   theme="filled_blue"
                   size="large"
@@ -597,9 +597,7 @@ const Navbar = () => {
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
             onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                setShowOtpModal(false);
-              }
+              if (e.target === e.currentTarget) setShowOtpModal(false);
             }}
           >
             <motion.div
@@ -626,7 +624,6 @@ const Navbar = () => {
                     : "Verification failed. Please try again."}
                 </div>
               )}
-
               {otpError && (
                 <div className="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-200 text-sm text-center">
                   {otpError}
@@ -649,7 +646,6 @@ const Navbar = () => {
                     />
                   ))}
                 </div>
-
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -685,9 +681,7 @@ const Navbar = () => {
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
             onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                handleCancelLogout();
-              }
+              if (e.target === e.currentTarget) handleCancelLogout();
             }}
           >
             <motion.div
@@ -704,7 +698,6 @@ const Navbar = () => {
                 Are you sure you want to logout? All your session data will be
                 cleared.
               </p>
-
               <div className="flex gap-3">
                 <button
                   onClick={handleCancelLogout}

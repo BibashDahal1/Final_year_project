@@ -2,7 +2,19 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
 const baseurl =
   import.meta.env.VITE_API_BASE_URL ||
-  "https://g4xllfkx-8000.inc1.devtunnels.ms";
+  "https://c7fv7c2b-8000.inc1.devtunnels.ms/";
+
+// Helper: extract access token from any response shape
+const extractTokens = (data) => ({
+  access: data.access || data.token || data.access_token || null,
+  refresh: data.refresh || data.refresh_token || null,
+});
+
+// Helper: persist tokens
+const saveTokens = (access, refresh) => {
+  if (access) localStorage.setItem("authToken", access);
+  if (refresh) localStorage.setItem("refreshToken", refresh);
+};
 
 // Async thunk for user signup
 export const signupUser = createAsyncThunk(
@@ -11,23 +23,17 @@ export const signupUser = createAsyncThunk(
     try {
       const response = await fetch(`${baseurl}/api/auth/signup/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(userData),
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        return rejectWithValue(data);
-      }
-
+      if (!response.ok) return rejectWithValue(data);
       return data;
     } catch (error) {
       return rejectWithValue({ message: error.message });
     }
-  }
+  },
 );
 
 // Async thunk for user login
@@ -37,28 +43,21 @@ export const loginUser = createAsyncThunk(
     try {
       const response = await fetch(`${baseurl}/api/auth/login/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(credentials),
       });
 
       const data = await response.json();
+      if (!response.ok) return rejectWithValue(data);
 
-      if (!response.ok) {
-        return rejectWithValue(data);
-      }
-
-      // Store token in localStorage
-      if (data.token || data.access_token) {
-        localStorage.setItem("authToken", data.token || data.access_token);
-      }
+      const { access, refresh } = extractTokens(data);
+      saveTokens(access, refresh);
 
       return data;
     } catch (error) {
       return rejectWithValue({ message: error.message });
     }
-  }
+  },
 );
 
 // Async thunk for OTP verification
@@ -66,34 +65,23 @@ export const verifyOTP = createAsyncThunk(
   "auth/verifyOTP",
   async (otpData, { rejectWithValue }) => {
     try {
-      console.log("Sending OTP verification:", otpData); // Debug log
-
       const response = await fetch(`${baseurl}/api/auth/verify-otp/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(otpData),
       });
 
       const data = await response.json();
-      console.log("OTP verification response:", data); // Debug log
+      if (!response.ok) return rejectWithValue(data);
 
-      if (!response.ok) {
-        return rejectWithValue(data);
-      }
-
-      // Store token in localStorage if provided
-      if (data.token || data.access_token) {
-        localStorage.setItem("authToken", data.token || data.access_token);
-      }
+      const { access, refresh } = extractTokens(data);
+      saveTokens(access, refresh);
 
       return data;
     } catch (error) {
-      console.error("OTP verification error:", error); // Debug log
       return rejectWithValue({ message: error.message });
     }
-  }
+  },
 );
 
 // Async thunk for Google login
@@ -103,43 +91,37 @@ export const googleLogin = createAsyncThunk(
     try {
       const response = await fetch(`${baseurl}/api/auth/google-login/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(tokenData),
       });
 
       const data = await response.json();
+      if (!response.ok) return rejectWithValue(data);
 
-      if (!response.ok) {
-        return rejectWithValue(data);
-      }
-
-      // Store token in localStorage
-      if (data.token || data.access_token) {
-        localStorage.setItem("authToken", data.token || data.access_token);
-      }
+      const { access, refresh } = extractTokens(data);
+      saveTokens(access, refresh);
 
       return data;
     } catch (error) {
       return rejectWithValue({ message: error.message });
     }
-  }
+  },
 );
 
-// Initial state
+// Initial state — rehydrate from localStorage on every page load/tab switch
+const storedToken = localStorage.getItem("authToken");
+
 const initialState = {
   user: null,
-  token: localStorage.getItem("authToken") || null,
-  isAuthenticated: !!localStorage.getItem("authToken"),
+  token: storedToken || null,
+  isAuthenticated: !!storedToken, // ← stays true across tab switches
   isLoading: false,
   error: null,
   signupSuccess: false,
   otpVerified: false,
-  signupEmail: null, // Store email for OTP verification
+  signupEmail: null,
 };
 
-// Auth slice
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -152,6 +134,7 @@ const authSlice = createSlice({
       state.otpVerified = false;
       state.signupEmail = null;
       localStorage.removeItem("authToken");
+      localStorage.removeItem("refreshToken");
     },
     clearError: (state) => {
       state.error = null;
@@ -164,7 +147,7 @@ const authSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // Signup cases
+    // ── Signup ──────────────────────────────────────────────────────────────
     builder
       .addCase(signupUser.pending, (state) => {
         state.isLoading = true;
@@ -175,18 +158,17 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.signupSuccess = true;
         state.user = action.payload.user || null;
-        // Store email for OTP verification
         state.signupEmail =
           action.payload.email || action.payload.user?.email || null;
       })
       .addCase(signupUser.rejected, (state, action) => {
         state.isLoading = false;
+        state.signupSuccess = false;
         state.error =
           action.payload?.message || action.payload?.error || "Signup failed";
-        state.signupSuccess = false;
       });
 
-    // Login cases
+    // ── Login ───────────────────────────────────────────────────────────────
     builder
       .addCase(loginUser.pending, (state) => {
         state.isLoading = true;
@@ -196,17 +178,21 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user || null;
+        // Support all three token field names the API might return
         state.token =
-          action.payload.token || action.payload.access_token || null;
+          action.payload.access ||
+          action.payload.token ||
+          action.payload.access_token ||
+          null;
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false;
+        state.isAuthenticated = false;
         state.error =
           action.payload?.message || action.payload?.error || "Login failed";
-        state.isAuthenticated = false;
       });
 
-    // OTP verification cases
+    // ── OTP Verification ────────────────────────────────────────────────────
     builder
       .addCase(verifyOTP.pending, (state) => {
         state.isLoading = true;
@@ -216,29 +202,33 @@ const authSlice = createSlice({
       .addCase(verifyOTP.fulfilled, (state, action) => {
         state.isLoading = false;
         state.otpVerified = true;
-        if (action.payload.token || action.payload.access_token) {
+        state.signupSuccess = false; // clear so OTP modal doesn't re-open
+
+        const access =
+          action.payload.access ||
+          action.payload.token ||
+          action.payload.access_token ||
+          null;
+
+        if (access) {
           state.isAuthenticated = true;
-          state.token = action.payload.token || action.payload.access_token;
-          localStorage.setItem(
-            "authToken",
-            action.payload.token || action.payload.access_token
-          );
+          state.token = access;
         }
-        // Update user data if provided
+
         if (action.payload.user) {
           state.user = action.payload.user;
         }
       })
       .addCase(verifyOTP.rejected, (state, action) => {
         state.isLoading = false;
+        state.otpVerified = false;
         state.error =
           action.payload?.message ||
           action.payload?.error ||
           "OTP verification failed";
-        state.otpVerified = false;
       });
 
-    // Google login cases
+    // ── Google Login ─────────────────────────────────────────────────────────
     builder
       .addCase(googleLogin.pending, (state) => {
         state.isLoading = true;
@@ -249,15 +239,18 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
         state.user = action.payload.user || null;
         state.token =
-          action.payload.token || action.payload.access_token || null;
+          action.payload.access ||
+          action.payload.token ||
+          action.payload.access_token ||
+          null;
       })
       .addCase(googleLogin.rejected, (state, action) => {
         state.isLoading = false;
+        state.isAuthenticated = false;
         state.error =
           action.payload?.message ||
           action.payload?.error ||
           "Google login failed";
-        state.isAuthenticated = false;
       });
   },
 });

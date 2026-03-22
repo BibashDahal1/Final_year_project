@@ -5,7 +5,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { store } from "./Store";
 import LandingPage from "./pages/LandingPage";
 import Features from "./pages/Features";
-import Translator from "./pages/Chat";
+import NepaliLensUI from "./pages/Chat";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -20,14 +20,7 @@ function App() {
             <Route path="/features" element={<Features />} />
 
             {/* Protected Chat Route */}
-            <Route
-              path="/chat"
-              element={
-                // <ProtectedRoute>
-                <Translator />
-                // </ProtectedRoute>
-              }
-            />
+            <Route path="/chat" element={<NepaliLensUI />} />
           </Routes>
         </HashRouter>
       </GoogleOAuthProvider>
