@@ -12,6 +12,7 @@ import {
 } from "../Slices/AuthSlice";
 import { motion, AnimatePresence } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
+import Image from "../assets/Aksar.png";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -262,18 +263,11 @@ const Navbar = () => {
             to="/"
             className="text-xl font-[italiana] font-bold text-white hover:scale-110 transition-transform"
           >
-            OCRio
+            <img src={Image} alt="Aksar Logo" className="h-25 w-auto" />
           </Link>
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-6">
-            <Link
-              to="/features"
-              className="text-white transition font-[italiana] hover:scale-110"
-            >
-              Features
-            </Link>
-
             {isAuthenticated ? (
               <>
                 <Link
@@ -311,14 +305,6 @@ const Navbar = () => {
         {/* Mobile Menu */}
         {isOpen && (
           <div className="md:hidden flex flex-col gap-3 pb-4 z-50">
-            <Link
-              to="/features"
-              className="text-white font-[italiana] hover:scale-110 transition-transform"
-              onClick={() => setIsOpen(false)}
-            >
-              Features
-            </Link>
-
             {isAuthenticated ? (
               <>
                 <Link

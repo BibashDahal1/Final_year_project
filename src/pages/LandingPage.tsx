@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "./Navbar";
+import Image from "../assets/Aksar.png";
 
 // ── Sparkle ───────────────────────────────────────────────────────────────────
 const sparkleVariants = {
@@ -534,7 +535,7 @@ const LandingPage = () => {
                 textShadow: "0 0 80px rgba(180,140,255,0.1)",
               }}
             >
-              भाषा दर्पण
+              अक्षर अनुवाद
             </span>
           </div>
 
@@ -562,6 +563,8 @@ const LandingPage = () => {
               />
             </motion.svg>
           ))}
+
+          <img src={Image} alt="Aksar Logo" className="w-50 h-50" />
 
           {/* AI badge */}
           <motion.div

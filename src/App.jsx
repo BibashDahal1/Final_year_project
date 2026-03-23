@@ -4,7 +4,6 @@ import { Provider } from "react-redux";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { store } from "./Store";
 import LandingPage from "./pages/LandingPage";
-import Features from "./pages/Features";
 import NepaliLensUI from "./pages/Chat";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -17,7 +16,6 @@ function App() {
         <HashRouter>
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/features" element={<Features />} />
 
             {/* Protected Chat Route */}
             <Route path="/chat" element={<NepaliLensUI />} />
