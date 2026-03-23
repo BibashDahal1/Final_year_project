@@ -736,7 +736,7 @@ const LandingPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.65 }}
           >
-            <StatPill value="99%+" label="OCR Accuracy" delay={0} />
+            <StatPill value="97%+" label="OCR Accuracy" delay={0} />
             <StatPill value="2" label="Languages" delay={0.1} />
             <StatPill
               value="3-in-1"

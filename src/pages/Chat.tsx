@@ -6,6 +6,7 @@ import {
   translateText,
   ocrTranslate,
   fetchTranslationHistory,
+  fetchOcrTranslateHistory,
 } from "../Slices/AuthSlice";
 import Navbar from "./Navbar";
 
@@ -535,8 +536,8 @@ function ResultPanel({
   return null;
 }
 
-// ── History Panel ─────────────────────────────────────────────────────────────
-function HistoryPanel({ history, loading, error, onReuseEntry }) {
+// ── Translation History Panel ─────────────────────────────────────────────────
+function TranslationHistoryPanel({ history, loading, error, onReuseEntry }) {
   const [expandedId, setExpandedId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
 
@@ -663,7 +664,6 @@ function HistoryPanel({ history, loading, error, onReuseEntry }) {
             transition={{ duration: 0.3, delay: idx * 0.04 }}
             onClick={() => setExpandedId(isExpanded ? null : item.id)}
           >
-            {/* Collapsed row */}
             <div className="flex items-center gap-3 px-4 py-3">
               <div
                 className="flex-shrink-0 px-2.5 py-1 rounded-lg"
@@ -722,7 +722,6 @@ function HistoryPanel({ history, loading, error, onReuseEntry }) {
               </motion.svg>
             </div>
 
-            {/* Expanded */}
             <AnimatePresence initial={false}>
               {isExpanded && (
                 <motion.div
@@ -904,6 +903,474 @@ function HistoryPanel({ history, loading, error, onReuseEntry }) {
   );
 }
 
+// ── OCR Translate History Panel ───────────────────────────────────────────────
+function OcrTranslateHistoryPanel({ history, loading, error }) {
+  const [expandedId, setExpandedId] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
+
+  const handleCopy = (text, id, e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1800);
+    });
+  };
+
+  const cardBase = {
+    background: "rgba(15, 8, 50, 0.72)",
+    backdropFilter: "blur(20px)",
+    border: "1px solid rgba(167,139,250,0.22)",
+    borderRadius: "1.25rem",
+    boxShadow: "0 8px 40px rgba(0,0,0,0.35)",
+  };
+  const devStyle = {
+    fontFamily: "'Noto Sans Devanagari', serif",
+    color: "rgba(220,190,255,0.88)",
+    fontSize: "0.85rem",
+    lineHeight: 1.75,
+  };
+  const enStyle = { color: "#e2d9f3", fontSize: "0.85rem", lineHeight: 1.75 };
+
+  if (loading)
+    return (
+      <div
+        className="w-full p-6 flex flex-col items-center gap-3"
+        style={cardBase}
+      >
+        <div className="flex gap-2">
+          {[0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="w-2 h-2 rounded-full"
+              style={{ background: "linear-gradient(135deg,#c084fc,#7c3aed)" }}
+              animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.2 }}
+            />
+          ))}
+        </div>
+        <p style={{ color: "rgba(200,170,255,0.55)", fontSize: "0.78rem" }}>
+          Loading OCR history…
+        </p>
+      </div>
+    );
+
+  if (error)
+    return (
+      <div
+        className="w-full p-5"
+        style={{ ...cardBase, border: "1px solid rgba(239,68,68,0.3)" }}
+      >
+        <p style={{ color: "rgba(252,165,165,0.8)", fontSize: "0.82rem" }}>
+          ⚠ {error}
+        </p>
+      </div>
+    );
+
+  if (!history?.length)
+    return (
+      <div
+        className="w-full p-8 flex flex-col items-center gap-3"
+        style={cardBase}
+      >
+        <div
+          className="w-12 h-12 rounded-2xl flex items-center justify-center mb-1"
+          style={{
+            background: "rgba(124,58,237,0.15)",
+            border: "1px solid rgba(167,139,250,0.2)",
+          }}
+        >
+          {/* Image + translate icon */}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <rect
+              x="3"
+              y="3"
+              width="18"
+              height="18"
+              rx="3"
+              stroke="#a78bfa"
+              strokeWidth="1.8"
+            />
+            <path
+              d="M8 15l3-4 2 2.5 2-3 3 4.5H8z"
+              stroke="#a78bfa"
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+        <p style={{ color: "rgba(167,139,250,0.55)", fontSize: "0.82rem" }}>
+          No OCR translate history yet
+        </p>
+        <p
+          style={{
+            fontFamily: "'Noto Sans Devanagari', serif",
+            color: "rgba(167,139,250,0.35)",
+            fontSize: "0.72rem",
+          }}
+        >
+          अहिलेसम्म कुनै ओसीआर इतिहास छैन
+        </p>
+      </div>
+    );
+
+  return (
+    <div className="w-full flex flex-col gap-2.5">
+      {history.map((item, idx) => {
+        const isNE = item.direction === "ne_en";
+        const isExpanded = expandedId === item.id;
+        // extracted_text is the OCR source, translated_text is the output
+        const sourceText = item.extracted_text || "";
+        const translatedText = item.translated_text || "";
+
+        return (
+          <motion.div
+            key={item.id}
+            layout
+            className="w-full rounded-2xl overflow-hidden cursor-pointer"
+            style={{
+              background: isExpanded
+                ? "rgba(20, 10, 60, 0.88)"
+                : "rgba(15, 8, 50, 0.65)",
+              backdropFilter: "blur(18px)",
+              border: isExpanded
+                ? "1px solid rgba(192,132,252,0.35)"
+                : "1px solid rgba(167,139,250,0.18)",
+              boxShadow: isExpanded
+                ? "0 8px 40px rgba(124,58,237,0.18)"
+                : "0 4px 20px rgba(0,0,0,0.22)",
+              transition: "border-color 0.2s, background 0.2s, box-shadow 0.2s",
+            }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: idx * 0.04 }}
+            onClick={() => setExpandedId(isExpanded ? null : item.id)}
+          >
+            {/* Collapsed row */}
+            <div className="flex items-center gap-3 px-4 py-3">
+              {/* OCR badge — distinct teal tint to differentiate from text-only */}
+              <div
+                className="flex-shrink-0 px-2.5 py-1 rounded-lg flex items-center gap-1"
+                style={{
+                  background: "rgba(56,189,248,0.12)",
+                  color: "#67e8f9",
+                  border: "1px solid rgba(103,232,249,0.22)",
+                  fontSize: "0.67rem",
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none">
+                  <rect
+                    x="3"
+                    y="3"
+                    width="18"
+                    height="18"
+                    rx="3"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  />
+                  <path
+                    d="M8 15l3-4 2 2.5 2-3 3 4.5H8z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {isNE ? "OCR नेपाली→EN" : "OCR EN→नेपाली"}
+              </div>
+
+              <p
+                className="flex-1 text-xs truncate"
+                style={{
+                  color: "rgba(210,190,255,0.68)",
+                  fontFamily: isNE
+                    ? "'Noto Sans Devanagari', serif"
+                    : "inherit",
+                }}
+              >
+                {truncate(sourceText, 52)}
+              </p>
+
+              {/* Confidence badge (avg) */}
+              {item.confidence_scores?.length > 0 && (
+                <span
+                  className="flex-shrink-0 hidden sm:flex items-center gap-1 rounded-md px-2 py-0.5"
+                  style={{
+                    background: "rgba(124,58,237,0.14)",
+                    color: "rgba(192,132,252,0.75)",
+                    fontSize: "0.62rem",
+                    fontWeight: 700,
+                  }}
+                >
+                  {(
+                    (item.confidence_scores.reduce((a, b) => a + b, 0) /
+                      item.confidence_scores.length) *
+                    100
+                  ).toFixed(0)}
+                  % conf
+                </span>
+              )}
+
+              <span
+                className="flex-shrink-0 text-xs hidden sm:block"
+                style={{
+                  color: "rgba(167,139,250,0.38)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {formatDate(item.created_at)}
+              </span>
+              <motion.svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                className="flex-shrink-0"
+                animate={{ rotate: isExpanded ? 180 : 0 }}
+                transition={{ duration: 0.22 }}
+              >
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="rgba(167,139,250,0.5)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </motion.svg>
+            </div>
+
+            {/* Expanded */}
+            <AnimatePresence initial={false}>
+              {isExpanded && (
+                <motion.div
+                  key="exp"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.28, ease: "easeInOut" }}
+                  style={{ overflow: "hidden" }}
+                >
+                  <div
+                    className="px-4 pb-4 flex flex-col gap-3 border-t"
+                    style={{ borderColor: "rgba(167,139,250,0.12)" }}
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                      {/* Extracted text */}
+                      <div
+                        className="rounded-xl p-3.5"
+                        style={{
+                          background: "rgba(56,189,248,0.07)",
+                          border: "1px solid rgba(103,232,249,0.14)",
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: "0.6rem",
+                            letterSpacing: "0.14em",
+                            textTransform: "uppercase",
+                            color: "rgba(103,232,249,0.55)",
+                            fontWeight: 700,
+                            marginBottom: "0.45rem",
+                          }}
+                        >
+                          Extracted (OCR)
+                        </p>
+                        <p style={isNE ? devStyle : enStyle}>{sourceText}</p>
+                        {/* Per-line confidence scores */}
+                        {item.confidence_scores?.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {item.confidence_scores.map((score, i) => (
+                              <span
+                                key={i}
+                                className="rounded px-1.5 py-0.5"
+                                style={{
+                                  background: "rgba(103,232,249,0.08)",
+                                  color: "rgba(103,232,249,0.6)",
+                                  fontSize: "0.58rem",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                L{i + 1}: {(score * 100).toFixed(1)}%
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Translated text */}
+                      <div
+                        className="rounded-xl p-3.5"
+                        style={{
+                          background: "rgba(192,132,252,0.07)",
+                          border: "1px solid rgba(192,132,252,0.16)",
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: "0.6rem",
+                            letterSpacing: "0.14em",
+                            textTransform: "uppercase",
+                            color: "rgba(192,132,252,0.6)",
+                            fontWeight: 700,
+                            marginBottom: "0.45rem",
+                          }}
+                        >
+                          Translated
+                        </p>
+                        <p style={isNE ? enStyle : devStyle}>
+                          {translatedText}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Footer row */}
+                    <div className="flex items-center gap-2 justify-between">
+                      <span
+                        className="text-xs sm:hidden"
+                        style={{ color: "rgba(167,139,250,0.38)" }}
+                      >
+                        {formatDate(item.created_at)}
+                      </span>
+                      <div className="flex items-center gap-2 ml-auto">
+                        {/* Copy translated */}
+                        <motion.button
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                          style={{
+                            background: "rgba(124,58,237,0.14)",
+                            border: "1px solid rgba(167,139,250,0.2)",
+                            color:
+                              copiedId === `${item.id}-tr`
+                                ? "#86efac"
+                                : "rgba(200,170,255,0.75)",
+                          }}
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={(e) =>
+                            handleCopy(translatedText, `${item.id}-tr`, e)
+                          }
+                        >
+                          {copiedId === `${item.id}-tr` ? (
+                            <>
+                              <svg
+                                width="11"
+                                height="11"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
+                                <path
+                                  d="M5 13l4 4L19 7"
+                                  stroke="#86efac"
+                                  strokeWidth="2.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <svg
+                                width="11"
+                                height="11"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
+                                <rect
+                                  x="9"
+                                  y="9"
+                                  width="13"
+                                  height="13"
+                                  rx="2"
+                                  stroke="currentColor"
+                                  strokeWidth="1.8"
+                                />
+                                <path
+                                  d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"
+                                  stroke="currentColor"
+                                  strokeWidth="1.8"
+                                  strokeLinecap="round"
+                                />
+                              </svg>
+                              Copy Translation
+                            </>
+                          )}
+                        </motion.button>
+                        {/* Copy OCR source */}
+                        <motion.button
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                          style={{
+                            background: "rgba(56,189,248,0.1)",
+                            border: "1px solid rgba(103,232,249,0.18)",
+                            color:
+                              copiedId === `${item.id}-src`
+                                ? "#86efac"
+                                : "rgba(103,232,249,0.75)",
+                          }}
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={(e) =>
+                            handleCopy(sourceText, `${item.id}-src`, e)
+                          }
+                        >
+                          {copiedId === `${item.id}-src` ? (
+                            <>
+                              <svg
+                                width="11"
+                                height="11"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
+                                <path
+                                  d="M5 13l4 4L19 7"
+                                  stroke="#86efac"
+                                  strokeWidth="2.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <svg
+                                width="11"
+                                height="11"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
+                                <rect
+                                  x="3"
+                                  y="3"
+                                  width="18"
+                                  height="18"
+                                  rx="3"
+                                  stroke="currentColor"
+                                  strokeWidth="1.8"
+                                />
+                                <path
+                                  d="M8 15l3-4 2 2.5 2-3 3 4.5H8z"
+                                  stroke="currentColor"
+                                  strokeWidth="1.4"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                              Copy OCR
+                            </>
+                          )}
+                        </motion.button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function NepaliLensUI() {
   const dispatch = useDispatch();
@@ -921,6 +1388,9 @@ export default function NepaliLensUI() {
     translationHistory,
     translationHistoryLoading,
     translationHistoryError,
+    ocrTranslateHistory,
+    ocrTranslateHistoryLoading,
+    ocrTranslateHistoryError,
   } = useSelector((state) => state.auth);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -935,26 +1405,36 @@ export default function NepaliLensUI() {
   const [showHistory, setShowHistory] = useState(false);
   const [historyFetched, setHistoryFetched] = useState(false);
 
+  // ── NEW: which history tab is active ─────────────────────────────────────
+  const [historyTab, setHistoryTab] = useState("translation"); // "translation" | "ocr"
+
   const fileInputRef = useRef(null);
 
-  // Fetch history on first open
+  // Fetch both history lists on first open
   const handleOpenHistory = () => {
     setShowHistory((v) => {
       const next = !v;
       if (next && !historyFetched) {
         dispatch(fetchTranslationHistory());
+        dispatch(fetchOcrTranslateHistory());
         setHistoryFetched(true);
       }
       return next;
     });
   };
 
-  // Auto-refresh history after a new translation
+  // Auto-refresh the correct history after a successful operation
   useEffect(() => {
-    if ((translationResult || ocrTranslateResult) && historyFetched) {
+    if (translationResult && historyFetched) {
       dispatch(fetchTranslationHistory());
     }
-  }, [translationResult, ocrTranslateResult]);
+  }, [translationResult]);
+
+  useEffect(() => {
+    if (ocrTranslateResult && historyFetched) {
+      dispatch(fetchOcrTranslateHistory());
+    }
+  }, [ocrTranslateResult]);
 
   const handleDrop = (e) => {
     e.preventDefault();
@@ -1007,6 +1487,15 @@ export default function NepaliLensUI() {
     );
   };
 
+  // Refresh handler — refreshes the currently visible tab
+  const handleRefreshHistory = () => {
+    if (historyTab === "translation") {
+      dispatch(fetchTranslationHistory());
+    } else {
+      dispatch(fetchOcrTranslateHistory());
+    }
+  };
+
   const currentError =
     activeMode === "ocr"
       ? ocrError
@@ -1015,6 +1504,10 @@ export default function NepaliLensUI() {
         : activeMode === "ocr-translate"
           ? ocrTranslateError
           : null;
+
+  // Combined badge count
+  const totalHistoryCount =
+    (translationHistory?.length ?? 0) + (ocrTranslateHistory?.length ?? 0);
 
   return (
     <>
@@ -1300,7 +1793,11 @@ export default function NepaliLensUI() {
                   <motion.div
                     className="w-4 h-4 rounded-full bg-white shadow"
                     animate={{ x: translateEnabled ? 18 : 0 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 500,
+                      damping: 30,
+                    }}
                   />
                 </div>
               </motion.button>
@@ -1381,7 +1878,11 @@ export default function NepaliLensUI() {
                   <motion.div
                     className="w-3 h-3 rounded-full bg-white shadow"
                     animate={{ x: translateEnabled ? 14 : 0 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 500,
+                      damping: 30,
+                    }}
                   />
                 </div>
               </motion.div>
@@ -1448,10 +1949,7 @@ export default function NepaliLensUI() {
             </motion.button>
           </motion.div>
 
-          {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-              TOGGLE ROW — fixed: always visible, filled background,
-              count badge always rendered, active glow state
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+          {/* Toggle Row */}
           <motion.div
             className="flex justify-center gap-3 mb-5 flex-wrap"
             initial={{ opacity: 0, y: 8 }}
@@ -1557,7 +2055,7 @@ export default function NepaliLensUI() {
               >
                 इतिहास
               </span>
-              {/* Badge — always visible; shows · until loaded, then count */}
+              {/* Combined badge */}
               <span
                 className="flex items-center justify-center rounded-md font-bold"
                 style={{
@@ -1572,9 +2070,7 @@ export default function NepaliLensUI() {
                   letterSpacing: "0.02em",
                 }}
               >
-                {translationHistory?.length != null
-                  ? translationHistory.length
-                  : "·"}
+                {totalHistoryCount > 0 ? totalHistoryCount : "·"}
               </span>
               <svg
                 width="11"
@@ -1727,7 +2223,7 @@ export default function NepaliLensUI() {
                         letterSpacing: "0.06em",
                       }}
                     >
-                      Translation History
+                      History
                     </span>
                     <span
                       style={{
@@ -1736,7 +2232,7 @@ export default function NepaliLensUI() {
                         fontSize: "0.7rem",
                       }}
                     >
-                      · अनुवाद इतिहास
+                      · इतिहास
                     </span>
                   </div>
                   <motion.button
@@ -1748,7 +2244,7 @@ export default function NepaliLensUI() {
                     }}
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.97 }}
-                    onClick={() => dispatch(fetchTranslationHistory())}
+                    onClick={handleRefreshHistory}
                   >
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
                       <path
@@ -1769,12 +2265,161 @@ export default function NepaliLensUI() {
                     Refresh
                   </motion.button>
                 </div>
-                <HistoryPanel
-                  history={translationHistory}
-                  loading={translationHistoryLoading}
-                  error={translationHistoryError}
-                  onReuseEntry={handleReuseEntry}
-                />
+
+                {/* ── Tab switcher ────────────────────────────────────────── */}
+                <div
+                  className="flex mb-4 rounded-xl overflow-hidden"
+                  style={{
+                    background: "rgba(15, 8, 50, 0.6)",
+                    border: "1px solid rgba(167,139,250,0.2)",
+                    backdropFilter: "blur(16px)",
+                    padding: "3px",
+                    gap: "3px",
+                  }}
+                >
+                  {/* Tab: Text Translation */}
+                  <button
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all"
+                    style={{
+                      background:
+                        historyTab === "translation"
+                          ? "linear-gradient(135deg, rgba(124,58,237,0.5), rgba(147,51,234,0.4))"
+                          : "transparent",
+                      color:
+                        historyTab === "translation"
+                          ? "#f0ecff"
+                          : "rgba(180,155,255,0.6)",
+                      border:
+                        historyTab === "translation"
+                          ? "1px solid rgba(192,132,252,0.35)"
+                          : "1px solid transparent",
+                      boxShadow:
+                        historyTab === "translation"
+                          ? "0 2px 12px rgba(124,58,237,0.25)"
+                          : "none",
+                    }}
+                    onClick={() => setHistoryTab("translation")}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M5 7h14M5 12h8M5 17h5"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    Text Translation
+                    <span
+                      className="rounded px-1.5 py-0.5 font-bold"
+                      style={{
+                        background:
+                          historyTab === "translation"
+                            ? "rgba(192,132,252,0.25)"
+                            : "rgba(124,58,237,0.18)",
+                        color:
+                          historyTab === "translation"
+                            ? "#c084fc"
+                            : "rgba(167,139,250,0.5)",
+                        fontSize: "0.58rem",
+                      }}
+                    >
+                      {translationHistory?.length ?? 0}
+                    </span>
+                  </button>
+
+                  {/* Tab: OCR + Translate */}
+                  <button
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all"
+                    style={{
+                      background:
+                        historyTab === "ocr"
+                          ? "linear-gradient(135deg, rgba(56,189,248,0.22), rgba(14,165,233,0.18))"
+                          : "transparent",
+                      color:
+                        historyTab === "ocr"
+                          ? "#e0f2fe"
+                          : "rgba(180,155,255,0.6)",
+                      border:
+                        historyTab === "ocr"
+                          ? "1px solid rgba(103,232,249,0.28)"
+                          : "1px solid transparent",
+                      boxShadow:
+                        historyTab === "ocr"
+                          ? "0 2px 12px rgba(56,189,248,0.15)"
+                          : "none",
+                    }}
+                    onClick={() => setHistoryTab("ocr")}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                      <rect
+                        x="3"
+                        y="3"
+                        width="18"
+                        height="18"
+                        rx="3"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      />
+                      <path
+                        d="M8 15l3-4 2 2.5 2-3 3 4.5H8z"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    OCR + Translate
+                    <span
+                      className="rounded px-1.5 py-0.5 font-bold"
+                      style={{
+                        background:
+                          historyTab === "ocr"
+                            ? "rgba(103,232,249,0.18)"
+                            : "rgba(56,189,248,0.12)",
+                        color:
+                          historyTab === "ocr"
+                            ? "#67e8f9"
+                            : "rgba(103,232,249,0.45)",
+                        fontSize: "0.58rem",
+                      }}
+                    >
+                      {ocrTranslateHistory?.length ?? 0}
+                    </span>
+                  </button>
+                </div>
+
+                {/* ── Tab content ─────────────────────────────────────────── */}
+                <AnimatePresence mode="wait">
+                  {historyTab === "translation" ? (
+                    <motion.div
+                      key="translation-tab"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.22 }}
+                    >
+                      <TranslationHistoryPanel
+                        history={translationHistory}
+                        loading={translationHistoryLoading}
+                        error={translationHistoryError}
+                        onReuseEntry={handleReuseEntry}
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="ocr-tab"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.22 }}
+                    >
+                      <OcrTranslateHistoryPanel
+                        history={ocrTranslateHistory}
+                        loading={ocrTranslateHistoryLoading}
+                        error={ocrTranslateHistoryError}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1916,7 +2561,11 @@ export default function NepaliLensUI() {
                 }}
                 variants={{
                   hidden: { opacity: 0, y: 20 },
-                  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+                  visible: {
+                    opacity: 1,
+                    y: 0,
+                    transition: { duration: 0.5 },
+                  },
                 }}
                 whileHover={{
                   y: -4,

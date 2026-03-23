@@ -202,6 +202,26 @@ export const fetchTranslationHistory = createAsyncThunk(
   },
 );
 
+export const fetchOcrTranslateHistory = createAsyncThunk(
+  "ocr/translateHistory",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`${baseurl}/api/ocr/translate-history/`, {
+        method: "GET",
+        headers: {
+          Authorization: `Token ${localStorage.getItem("authToken")}`,
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) return rejectWithValue(data);
+      return data;
+    } catch (error) {
+      return rejectWithValue({ message: error.message });
+    }
+  },
+);
+
 // Initial state — rehydrate from localStorage on every page load/tab switch
 const storedToken = localStorage.getItem("authToken");
 
@@ -232,6 +252,10 @@ const initialState = {
   translationHistory: [],
   translationHistoryLoading: false,
   translationHistoryError: null,
+
+  ocrTranslateHistory: [],
+  ocrTranslateHistoryLoading: false,
+  ocrTranslateHistoryError: null,
 };
 
 const authSlice = createSlice({
@@ -275,6 +299,10 @@ const authSlice = createSlice({
     clearTranslationHistory: (state) => {
       state.translationHistory = [];
       state.translationHistoryError = null;
+    },
+    clearOcrTranslateHistory: (state) => {
+      state.ocrTranslateHistory = [];
+      state.ocrTranslateHistoryError = null;
     },
   },
   extraReducers: (builder) => {
@@ -456,6 +484,23 @@ const authSlice = createSlice({
           action.payload?.error ||
           "Failed to fetch translation history";
       });
+
+    builder
+      .addCase(fetchOcrTranslateHistory.pending, (state) => {
+        state.ocrTranslateHistoryLoading = true;
+        state.ocrTranslateHistoryError = null;
+      })
+      .addCase(fetchOcrTranslateHistory.fulfilled, (state, action) => {
+        state.ocrTranslateHistoryLoading = false;
+        state.ocrTranslateHistory = action.payload;
+      })
+      .addCase(fetchOcrTranslateHistory.rejected, (state, action) => {
+        state.ocrTranslateHistoryLoading = false;
+        state.ocrTranslateHistoryError =
+          action.payload?.message ||
+          action.payload?.error ||
+          "Failed to fetch OCR translate history";
+      });
   },
 });
 
@@ -468,6 +513,7 @@ export const {
   resetTranslationResult,
   resetOcrTranslateResult,
   clearTranslationHistory,
+  clearOcrTranslateHistory,
 } = authSlice.actions;
 
 export default authSlice.reducer;
